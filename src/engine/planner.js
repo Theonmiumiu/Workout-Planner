@@ -376,7 +376,10 @@ export function createInitialLogs(plan) {
 // ---- v1 → v2 迁移：旧数据中的 exerciseId 即新版本 id ----
 
 export function migrateLegacyEntry(entry) {
-  if (entry.movementId) return entry;
+  if (entry.movementId) {
+    if (entry.movementId === 'chest-fly' && entry.variantId === 'crossover-fly') return { ...entry, movementId: 'high-to-low-fly' };
+    return entry;
+  }
   const movementId = movementIdForVariant(entry.exerciseId);
   if (!movementId) return null;
   const { exerciseId, ...rest } = entry;

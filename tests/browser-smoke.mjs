@@ -48,6 +48,20 @@ try {
   await page.getByRole('button', { name: '动作库' }).click();
   await page.getByText('测试卧推').waitFor();
 
+  // 后束和器械名称都应能检索到蝴蝶机反坐等全部版本。
+  const librarySearch = page.getByPlaceholder('搜索动作');
+  const reverseFlyRow = page.locator('.library-row-main').filter({ hasText: '反向飞鸟' });
+  await librarySearch.fill('后束');
+  await reverseFlyRow.waitFor();
+  await librarySearch.fill('蝴蝶机');
+  await reverseFlyRow.waitFor();
+  await reverseFlyRow.click();
+  await page.getByRole('dialog', { name: '反向飞鸟', exact: true }).waitFor();
+  await page.getByText('蝴蝶机反向飞鸟', { exact: true }).waitFor();
+  await page.screenshot({ path: `${root}/artifacts/library-reverse-fly.png`, fullPage: true });
+  await page.getByRole('dialog').locator('.modal-close').click();
+  await librarySearch.fill('');
+
   await page.getByRole('button', { name: '训练参数' }).click();
   await page.getByLabel('训练分化').selectOption('full');
   await page.getByRole('button', { name: '去计划页生成' }).click();
@@ -121,6 +135,23 @@ try {
   await page.getByRole('button', { name: '重新生成', exact: true }).click();
   if (await page.locator('.legacy-plan-note').count()) throw new Error('重新生成后仍显示旧规则提示');
   if (await page.evaluate(() => JSON.parse(localStorage.getItem('form-logs-v2')).length) !== 1) throw new Error('重新生成丢失训练历史');
+
+  // v2 历史数据中的通用十字机飞鸟也要自动归到高位下夹。
+  await page.evaluate(() => {
+    const plan = JSON.parse(localStorage.getItem('form-plan-v2'));
+    Object.assign(plan.days[0].exercises[0], { movementId: 'chest-fly', variantId: 'crossover-fly' });
+    localStorage.setItem('form-plan-v2', JSON.stringify(plan));
+    const logs = JSON.parse(localStorage.getItem('form-logs-v2'));
+    Object.assign(logs[0].exercises[0], { movementId: 'chest-fly', variantId: 'crossover-fly' });
+    localStorage.setItem('form-logs-v2', JSON.stringify(logs));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: '本周训练计划' }).waitFor();
+  const migrated = await page.evaluate(() => ({
+    plan: JSON.parse(localStorage.getItem('form-plan-v2')).days[0].exercises[0].movementId,
+    log: JSON.parse(localStorage.getItem('form-logs-v2'))[0].exercises[0].movementId,
+  }));
+  if (migrated.plan !== 'high-to-low-fly' || migrated.log !== 'high-to-low-fly') throw new Error('旧十字机飞鸟数据未迁移');
   if (errors.length) throw new Error(`浏览器错误：${errors.join(' | ')}`);
   console.log('浏览器验证通过：分化选择、部位约束、合并训练量、器械、锁定与替换、训练记录、规则说明、移动端和旧计划升级。');
 } finally {

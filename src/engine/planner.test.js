@@ -267,3 +267,29 @@ test('进阶建议使用计划条目的自定义次数范围', () => {
   const sets = [{ reps: 14, rir: 2 }, { reps: 14, rir: 2 }];
   assert.equal(getProgressionAdvice(movement, sets, [9, 14]).type, 'up');
 });
+
+test('胸部飞鸟按拉力线严格区分下胸、中胸和上胸', () => {
+  assert.equal(movementById('high-to-low-fly').primary.lowerChest, 1);
+  assert.equal(movementById('chest-fly').primary.midChest, 1);
+  assert.equal(movementById('pec-deck-fly').primary.midChest, 1);
+  assert.equal(movementById('low-cable-fly').primary.upperChest, 1);
+  const crossoverOwner = MOVEMENTS.find((movement) => movement.variants.some((variant) => variant.id === 'crossover-fly'));
+  assert.equal(crossoverOwner.id, 'high-to-low-fly');
+  assert.ok(!movementById('chest-fly').variants.some((variant) => variant.id === 'crossover-fly'));
+});
+
+test('旧十字机下夹数据随版本归属迁移到下胸动作', () => {
+  const entry = { id: 'old-crossover', movementId: 'chest-fly', variantId: 'crossover-fly', sets: 3 };
+  const plan = migrateLegacyPlan({ days: [{ id: 'day-old', exercises: [entry] }] });
+  assert.equal(plan.days[0].exercises[0].movementId, 'high-to-low-fly');
+  const logs = migrateLegacyLogs([{ id: 'log-old', exercises: [{ movementId: 'chest-fly', variantId: 'crossover-fly', sets: [] }] }]);
+  assert.equal(logs[0].exercises[0].movementId, 'high-to-low-fly');
+});
+
+test('反向飞鸟包含蝴蝶机、哑铃、绳索和十字机版本且均由肩后束主导', () => {
+  const reverseFly = movementById('reverse-fly');
+  assert.deepEqual(reverseFly.primary, { rearDelt: 1, upperBack: .45 });
+  const variantIds = reverseFly.variants.map((variant) => variant.id);
+  for (const id of ['reverse-pec', 'db-reverse-fly', 'cable-reverse-fly', 'crossover-reverse-fly']) assert.ok(variantIds.includes(id), id);
+  for (const variant of reverseFly.variants) assert.ok(isVariantAvailable(variant, DEFAULT_EQUIPMENT, DEFAULT_ATTACHMENTS), variant.id);
+});

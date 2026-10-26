@@ -17,7 +17,9 @@ export default function LibraryPage({ equipment, setEquipment, attachments, prof
   const [showCustom, setShowCustom] = useState(false);
   const movements = allMovements();
   const filtered = movements.filter((movement) => {
-    const matchesText = `${movement.name}${movement.cue}`.includes(query);
+    const muscleNames = Object.keys({ ...movement.primary, ...movement.secondary }).map((id) => MUSCLES[id]?.name ?? '');
+    const variantText = movement.variants.flatMap((variant) => [variant.name, variant.cue ?? '', ...variant.requires.flat().map(itemName)]);
+    const matchesText = [movement.name, movement.cue, ...muscleNames, ...variantText].join(' ').includes(query);
     const matchesPattern = pattern === 'all' || movement.pattern === pattern;
     return matchesText && matchesPattern;
   });

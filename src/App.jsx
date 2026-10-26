@@ -3,10 +3,14 @@ import { Activity, BookOpen, Check, ClipboardCheck, Download, Dumbbell, LayoutDa
 import { DEFAULT_ATTACHMENTS, DEFAULT_EQUIPMENT, DEFAULT_PROFILE } from './data/exercises.js';
 import { createPlan, migrateLegacyLogs, migrateLegacyPlan, migrateLegacyProfile, setCustomData } from './engine/planner.js';
 
-// 首次加载时把 v1 本地数据迁移到 v2（动作 → 动作+器械版本模型），之后删除旧键。
+// 加载时迁移旧动作模型，并修正历史动作与版本归属；之后删除 v1 键。
 if (typeof localStorage !== 'undefined') {
   try {
     const read = (key) => { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; };
+    const storedPlan = read('form-plan-v2');
+    if (storedPlan) localStorage.setItem('form-plan-v2', JSON.stringify(migrateLegacyPlan(storedPlan)));
+    const storedLogs = read('form-logs-v2');
+    if (storedLogs) localStorage.setItem('form-logs-v2', JSON.stringify(migrateLegacyLogs(storedLogs)));
     if (!localStorage.getItem('form-plan-v2')) {
       const legacyPlan = read('form-plan-v1');
       if (legacyPlan) {
