@@ -36,7 +36,7 @@ export default function EquipmentPage({ equipment, setEquipment, attachments, se
 
   return <div className="page equipment-page">
     <header className="page-header split-header">
-      <div><h1>你的健身房</h1><p className="page-summary">点选器械与配件，动作库会立即按真实组合更新。</p></div>
+      <div><h1>你的健身房</h1></div>
       <div className="header-actions"><button className="button secondary" onClick={() => setShowCustom(true)}><Plus size={16} />自定义</button></div>
       <div className="header-stat"><strong>{availableCount}</strong><span>个动作可执行</span></div>
     </header>
@@ -58,7 +58,7 @@ export default function EquipmentPage({ equipment, setEquipment, attachments, se
     </div>
 
     <div className="sticky-action-bar">
-      <p>当前配置可执行 <strong>{availableCount}</strong> 个动作 · 修改将在下次生成计划时生效</p>
+      <p>当前配置可执行 <strong>{availableCount}</strong> 个动作</p>
       <button className="button secondary" onClick={onGoPlan}>去计划页生成 <ChevronRight size={17} /></button>
     </div>
     {showCustom && <CustomDataModal custom={custom} setCustom={setCustom} equipment={equipment} setEquipment={setEquipment} onClose={() => setShowCustom(false)} initialTab="equipment" />}

@@ -1,5 +1,5 @@
 {
-  "name": "form-gym-planner",
+  "name": "set-gym-planner",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test src/engine/planner.test.js"
+    "test": "node --test src/engine/*.test.js"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

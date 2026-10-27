@@ -59,11 +59,11 @@ test('相同输入生成相同训练内容', () => {
   assert.deepEqual(a.targets, b.targets);
 });
 
-test('双进阶规则只在全组达标且保留余力时建议加重', () => {
+test('达到次数上限且有余力时加重，多数组低于下限且接近力竭时减重', () => {
   const movement = movementById('lateral-raise');
-  const up = getProgressionAdvice(movement, [{ reps: 20, rir: 2 }, { reps: 20, rir: 1 }]);
-  const hold = getProgressionAdvice(movement, [{ reps: 18, rir: 2 }, { reps: 17, rir: 1 }]);
-  const down = getProgressionAdvice(movement, [{ reps: 8, rir: 0 }, { reps: 9, rir: 1 }]);
+  const up = getProgressionAdvice(movement, [{ weight: 5, reps: 20, rir: 2 }, { weight: 5, reps: 20, rir: 1 }]);
+  const hold = getProgressionAdvice(movement, [{ weight: 5, reps: 18, rir: 2 }, { weight: 5, reps: 17, rir: 1 }]);
+  const down = getProgressionAdvice(movement, [{ weight: 5, reps: 8, rir: 0 }, { weight: 5, reps: 9, rir: 1 }]);
   assert.equal(up.type, 'up');
   assert.equal(hold.type, 'hold');
   assert.equal(down.type, 'down');
@@ -125,10 +125,10 @@ test('动作是否属于分化只看主导目标，辅助参与不能放宽部�
   assert.equal(isMovementAllowedForFocus(movementById('reverse-fly'), 'shoulders'), true);
 });
 
-test('216 种频次、分化、时长和器械组合满足部位、时间、版本与组数约束', () => {
-  const schedules = [[6], [2, 6], [1, 3, 6], [1, 2, 4, 6], [1, 2, 3, 5, 6], [1, 2, 3, 4, 5, 6]];
+test('252 种频次、分化、时长和器械组合满足部位、时间、版本与组数约束', () => {
+  const schedules = [[6], [2, 6], [1, 3, 6], [1, 2, 4, 6], [1, 2, 3, 5, 6], [1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6, 0]];
   const gyms = [[DEFAULT_EQUIPMENT, DEFAULT_ATTACHMENTS], [['dumbbell', 'adjustableBench'], []], [[], []]];
-  for (const weekdays of schedules) for (const split of SPLITS) for (const minutes of [30, 45, 60, 120]) for (const [equipment, attachments] of gyms) {
+  for (const weekdays of schedules) for (const split of SPLITS.filter((item) => item.id !== 'custom')) for (const minutes of [30, 45, 60, 120]) for (const [equipment, attachments] of gyms) {
     const profile = { ...clone(DEFAULT_PROFILE), weekdays, daysPerWeek: weekdays.length, split: split.id, minutes };
     const plan = createPlan(profile, equipment, attachments);
     const label = `${weekdays.length} / ${split.id} / ${minutes} / ${equipment.length}`;
@@ -219,14 +219,13 @@ test('进阶不使用缺失、非数字或不同工作重量的组记录建议�
   }
 });
 
-test('肌群占比归一化为100%且保留主辅关系', async () => {
-  const { muscleShares } = await import('./planner.js');
-  const shares = muscleShares(movementById('incline-bench-press'));
-  assert.equal(shares.reduce((sum, item) => sum + item.percent, 0), 100);
-  const upperChest = shares.find((item) => item.id === 'upperChest');
-  const frontDelt = shares.find((item) => item.id === 'frontDelt');
-  assert.ok(upperChest.percent > frontDelt.percent);
-  assert.ok(shares.every((item) => item.percent > 0));
+test('肌群展示使用独立折算系数，不伪造归一化的发力百分比', async () => {
+  const { muscleContributions } = await import('./planner.js');
+  const contributions = muscleContributions(movementById('incline-bench-press'));
+  assert.equal(contributions.find((item) => item.id === 'upperChest').coefficient, 1);
+  assert.equal(contributions.find((item) => item.id === 'frontDelt').role, 'secondary');
+  assert.ok(contributions.every((item) => item.percent === undefined));
+  assert.ok(contributions.reduce((sum, item) => sum + item.coefficient, 0) > 1);
 });
 
 test('自定义器械与动作参与可用性筛选和查找', async () => {
@@ -264,7 +263,7 @@ test('计划条目的次数范围覆盖动作默认值并用于初始记录', as
 
 test('进阶建议使用计划条目的自定义次数范围', () => {
   const movement = movementById('lateral-raise');
-  const sets = [{ reps: 14, rir: 2 }, { reps: 14, rir: 2 }];
+  const sets = [{ weight: 5, reps: 14, rir: 2 }, { weight: 5, reps: 14, rir: 2 }];
   assert.equal(getProgressionAdvice(movement, sets, [9, 14]).type, 'up');
 });
 
@@ -288,8 +287,17 @@ test('旧十字机下夹数据随版本归属迁移到下胸动作', () => {
 
 test('反向飞鸟包含蝴蝶机、哑铃、绳索和十字机版本且均由肩后束主导', () => {
   const reverseFly = movementById('reverse-fly');
-  assert.deepEqual(reverseFly.primary, { rearDelt: 1, upperBack: .45 });
+  assert.deepEqual(reverseFly.primary, { rearDelt: 1 });
+  assert.equal(reverseFly.secondary.upperBack, .5);
   const variantIds = reverseFly.variants.map((variant) => variant.id);
   for (const id of ['reverse-pec', 'db-reverse-fly', 'cable-reverse-fly', 'crossover-reverse-fly']) assert.ok(variantIds.includes(id), id);
   for (const variant of reverseFly.variants) assert.ok(isVariantAvailable(variant, DEFAULT_EQUIPMENT, DEFAULT_ATTACHMENTS), variant.id);
+});
+
+test('推拉腿分化标题直接标明推拉腿并更新已保存计划', () => {
+  assert.equal(FOCUSES.push.title, '推训练');
+  assert.equal(FOCUSES.pull.title, '拉训练');
+  assert.equal(FOCUSES.legs.title, '腿训练');
+  const plan = migrateLegacyPlan({ days: [{ focus: 'push', title: '胸肩＋三头训练', exercises: [] }] });
+  assert.equal(plan.days[0].title, '推训练');
 });
